@@ -13,7 +13,7 @@
 
 const char* ssid = "ESP8266_config";
 const char* password = "12345678";
-const int gpioList[] = {0, 2};
+const int gpioList[] = {0, 2, 4, 5, 12, 13, 14, 15, 16};
 const int GPIO_COUNT = sizeof(gpioList)/sizeof(gpioList[0]);
 bool gpioConfigured = false;
 bool registrationComplete = false;
@@ -470,7 +470,7 @@ String getConfigPage() {
   </div>
 
   <script>
-    const gpioList = [0,2];
+    const gpioList = [0, 2, 4, 5, 12, 13, 14, 15, 16];
     function populateGpioTable() {
       const tbody = document.getElementById('gpioTable');
       tbody.innerHTML = "";
