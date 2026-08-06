@@ -5,7 +5,6 @@
 #include<ArduinoJson.h>
 
 #define ESP_NOW_CHANNEL 1
-#define BUTTON 0
 #define MAX_PEER_LIST 10
 
 const char* ap_ssid = "ESP32_WEB";
@@ -18,6 +17,7 @@ typedef enum{
   DEVICE_DHT11,
   DEVICE_AM2303,
   DEVICE_SHT3X,
+  DEVICE_DS18B20,
   DEVICE_LED
 } DeviceType;
 
@@ -325,6 +325,9 @@ void sendNewPeer(const uint8_t *mac, DeviceType type){
   else if(type == DEVICE_SHT3X){
     json += "SHT3X";
   }
+  else if(type == DEVICE_DS18B20){
+    json += "DS18B20";
+  }
   else if(type == DEVICE_LED){
     json += "LED";
   }
@@ -491,6 +494,9 @@ void onDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len){
     else if(dev.type == DEVICE_SHT3X){
       json += "SHT3X";
     }
+    else if(dev.type == DEVICE_DS18B20){
+      json += "DS18B20";
+    }
     else if(dev.type == DEVICE_LED){
       json += "LED";
     }
@@ -499,6 +505,9 @@ void onDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len){
     if(dev.type == DEVICE_DHT11 || dev.type == DEVICE_AM2303 || dev.type == DEVICE_SHT3X){
       json += "Nhiệt độ: " + String(dev.temperature) + "°C, Độ ẩm: " + String(dev.humidity) + "%";
     } 
+    else if(dev.type == DEVICE_DS18B20){
+      json += "Nhiệt độ: " + String(dev.temperature) + "°C";
+    }
     else if(dev.type == DEVICE_LED){
       json += dev.ledState ? "LED:ON" : "LED:OFF";
     }
@@ -563,6 +572,21 @@ void onDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len){
           sendTextToPeer(index, "REGISTER_NEW_ESP8266_DONE");
         }
       } 
+      else if(strcmp(msg, "REGISTER_DS18B20") == 0){
+        int index = findPeerByMac(mac);
+        if(index < 0 && add_new_peer(mac, DEVICE_DS18B20)){
+          index = peer_count - 1;
+          sendPeerList();
+        }
+        if(index >= 0){
+          // Cho phep node doi loai cam bien ma khong can xoa peer cu.
+          peer_list[index].type = DEVICE_DS18B20;
+          strncpy(peer_list[index].lastBroadcast, "REGISTER_DS18B20", sizeof(peer_list[index].lastBroadcast) - 1);
+          peer_list[index].lastBroadcast[sizeof(peer_list[index].lastBroadcast) - 1] = '\0';
+          sendPeerList();
+          sendTextToPeer(index, "REGISTER_NEW_ESP8266_DONE");
+        }
+      }
       else{
         update_peer_data(mac, msg);
     }
