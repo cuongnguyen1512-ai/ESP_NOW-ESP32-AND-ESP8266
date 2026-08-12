@@ -7,12 +7,13 @@
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
 #include <espnow.h>
+#include <ESP8266HTTPUpdateServer.h>
 
 #define ESP_NOW_CHANNEL 1
 #define BUTTON 0
 #define SENSOR_PACKET_MAGIC 0xA5
 
-const char* ssid = "ESP8266_config";
+const char* ssid = "ESP8266_1M_config";
 const char* password = "12345678";
 const int gpioList[] = {0, 2};
 const int GPIO_COUNT = sizeof(gpioList)/sizeof(gpioList[0]);
@@ -34,7 +35,11 @@ const unsigned long sendInterval = 5000;
 uint8_t esp32MAC[6];
 uint8_t broadcastAddress[] ={0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
+
+ESP8266HTTPUpdateServer httpUpdater;
+volatile bool otaInProgress = false;
 ESP8266WebServer server(80);
+
 
 struct Config {
   int gpioMode[10];
@@ -567,11 +572,24 @@ void setup() {
     file.close();
     server.send(200, "application/json", json);
   });
+
+  // ==== Thêm phần OTA ====
+  Update.onStart([]() {
+    otaInProgress = true;
+    Serial.println("OTA ESP8266 bắt đầu...");
+  });
+  Update.onEnd([]() {
+    Serial.println("OTA ESP8266 hoàn tất, đang khởi động lại...");
+  });
+  httpUpdater.setup(&server, "/update");  // đổi user/pass theo ý bạn
+  Serial.println("OTA sẵn sàng tại: http://" + WiFi.softAPIP().toString() + "/update");
+  // ========================
   server.begin();
 }
 
 void loop() {
   server.handleClient();
+  if (otaInProgress) return; 
   button_to_send_broadcast();
   if(master_register && connected){
     if (millis() - lastSend >= sendInterval) {

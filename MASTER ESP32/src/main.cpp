@@ -3,6 +3,7 @@
 #include<esp_wifi.h>
 #include <ESPAsyncWebServer.h>
 #include<ArduinoJson.h>
+#include <ElegantOTA.h>
 
 #define ESP_NOW_CHANNEL 1
 #define BUTTON 0
@@ -313,7 +314,7 @@ String makePeerListJson() {
 void sendPeerList() {
   ws.textAll(makePeerListJson());
 }
-
+/*
 void sendNewPeer(const uint8_t *mac, DeviceType type){
   String json="{\"type\":\"new_peer\",\"mac\":\"";
   json+=macToString(mac);
@@ -334,7 +335,7 @@ void sendNewPeer(const uint8_t *mac, DeviceType type){
   json+="\"}";
   ws.textAll(json);
 }
-
+*/
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len){
   Serial.printf("WS event=%d, client=%u\n", (int)type, client->id());
   if (type == WS_EVT_CONNECT) {
@@ -583,6 +584,7 @@ void send_command(uint8_t *mac,String cmd){
     esp_now_send(mac, (uint8_t*)cmd.c_str(), cmd.length()+1);
 } 
 
+volatile bool otaInProgress = false;
 void setup(){
   Serial.begin(115200);
   delay(1000);
@@ -610,11 +612,23 @@ void setup(){
   esp_now_register_recv_cb(onDataRecv);
   esp_now_register_send_cb(onDataSent);
 
+  ElegantOTA.onStart([]() {
+    otaInProgress = true;
+    Serial.println("OTA ESP32 bắt đầu...");
+  });
+  ElegantOTA.onEnd([](bool success) {
+    Serial.println(success ? "OTA thành công!" : "OTA thất bại!");
+  });
+  ElegantOTA.setAuth("admin", "esp32ota");   // gọi TRƯỚC ElegantOTA.begin(&server)
+  ElegantOTA.begin(&server);
+  Serial.println("OTA sẵn sàng tại: http://" + WiFi.softAPIP().toString() + "/update");
   initWebSocket();
   initWebServer();
 }
 
 void loop(){
+  ElegantOTA.loop();
+  if (otaInProgress) return;
   ws.cleanupClients();
   if(wsFlag){
     ws.textAll(wsBuffer);
